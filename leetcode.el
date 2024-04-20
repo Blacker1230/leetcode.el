@@ -190,6 +190,7 @@ The elements of :problems has attributes:
 (defconst leetcode--api-check-submission    (concat leetcode--base-url "/submissions/detail/%s/check/"))
 ;; try testcase
 (defconst leetcode--api-try                 (concat leetcode--base-url "/problems/%s/interpret_solution/"))
+(defconst leetcode--api-try-referer         (concat leetcode--base-url "/problems/%s/"))
 
 (defun to-list (vec)
   "Convert VEC to list."
@@ -281,6 +282,7 @@ It also cleans LeetCode cookies in `url-cookie-file'."
     (leetcode--debug "login csrftoken: '%s'" leetcode-csrftoken)
     (url-cookie-store "LEETCODE_SESSION" leetcode-session nil leetcode--domain "/" t)
     (url-cookie-store "csrftoken" leetcode-csrftoken nil leetcode--domain "/" t))
+  (aio-await (leetcode--csrf-token))    ;knock knock, whisper me the mysterious information
   (leetcode--loading-mode -1))
 
 (defun leetcode--login-p ()
@@ -318,8 +320,8 @@ USER-AND-PROBLEMS is an alist comes from
                   (problems nil))
              (dotimes (i len)
                (let-alist (aref .stat_status_pairs i)
-                 (leetcode--debug "frontend_question_id: %s, question_id: %s, title: %s"
-                                  .stat.frontend_question_id .stat.question_id .stat.question__title)
+                 (leetcode--debug "frontend_question_id: %s, question_id: %s, title: %s, status: %s"
+                                  .stat.frontend_question_id .stat.question_id .stat.question__title .status)
                  (push (list
                         :status .status
                         :id .stat.question_id
@@ -366,7 +368,7 @@ OPERATION and VARS are LeetCode GraphQL parameters."
    (cons "operationName" operation)
    (cons "query"
          (graphql-query
-          questionData
+          problemsetQuestionList
           (:arguments
            (($titleSlug . String!))
            (question
@@ -375,6 +377,7 @@ OPERATION and VARS are LeetCode GraphQL parameters."
             likes
             dislikes
             content
+            status
             sampleTestCase
             (topicTags slug)
             (codeSnippets langSlug code)))))
@@ -395,7 +398,7 @@ Return a object with following attributes:
             ,(cons "Content-Type" "application/json")))
          (url-request-data
           (json-encode (leetcode--problem-graphql-params
-                        "questionData"
+                        "problemsetQuestionList"
                         (list (cons "titleSlug" slug-title)))))
          (result (aio-await (aio-url-retrieve leetcode--api-graphql))))
     (if-let ((error-info (plist-get (car result) :error)))
@@ -695,6 +698,8 @@ LeetCode require slug-title as the request parameters."
   "Asynchronously test the code using customized testcase."
   (interactive)
   (leetcode--loading-mode t)
+  (aio-await (leetcode--csrf-token))    ;knock knock, whisper me the mysterious information
+  (leetcode--debug "csrf token: %s" (aio-await (leetcode--csrf-token)))
   (let* ((code-buf (current-buffer))
          (testcase-buf (get-buffer leetcode--testcase-buffer-name))
          (slug-title (leetcode--get-slug-title-before-try/submit code-buf))
@@ -710,13 +715,12 @@ LeetCode require slug-title as the request parameters."
             `(,leetcode--User-Agent
               ("Content-Type" . "application/json")
               ,(leetcode--referer (format
-                                   leetcode--api-problems-submission
+                                   leetcode--api-try-referer
                                    slug-title))
               ,(cons leetcode--X-CSRFToken (aio-await (leetcode--csrf-token)))))
            (url-request-data
             (json-encode
              `((data_input  . ,(leetcode--buffer-content testcase-buf))
-               (judge_type  . "small")
                (lang        . ,leetcode--lang)
                (question_id . ,problem-id)
                (typed_code  . ,(leetcode--buffer-content code-buf)))))
