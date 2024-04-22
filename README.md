@@ -1,6 +1,6 @@
 [![MELPA](https://melpa.org/packages/leetcode-badge.svg)](https://melpa.org/#/leetcode)
 > forked from kaiwk/leetcode.el. modified to support leetcode-cn. please cooperate with
-[liyan-ah/my_cookies](https://github.com/liyan-ah/my_cookies) to support leetcode-cn cookies. download [liyan-ah/leetcode.el](https://github.com/liyan-ah/leetcode.el)
+[liyan-ah/my_cookies](https://github.com/liyan-ah/my_cookies) to support leetcode-cn cookies. download [liyan-ah/leetcode-cn.el](https://github.com/liyan-ah/leetcode-cn.el)
 and [liyan-ah/my_cookies](https://github.com/liyan-ah/my_cookies), and overwrite the original.
 
 # Introduction
